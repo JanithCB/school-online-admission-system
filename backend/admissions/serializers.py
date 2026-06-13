@@ -6,7 +6,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
         fields = '__all__'
-        read_only_fields = ('status', 'created_at', 'updated_at')
+        read_only_fields = ('created_at', 'updated_at')
 
     def to_internal_value(self, data):
         """
