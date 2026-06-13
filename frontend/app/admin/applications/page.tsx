@@ -2,47 +2,75 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getApplications, getStatusSummary } from "@/lib/api";
+import { getApplications, getStatusSummary, deleteApplication, updateApplicationStatus } from "@/lib/api";
 import { Application, StatusSummary } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Edit, FileText, Image as ImageIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Edit, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [summary, setSummary] = useState<StatusSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchData = async () => {
+    try {
+      const [appsData, summaryData] = await Promise.all([
+        getApplications(),
+        getStatusSummary()
+      ]);
+      setApplications(appsData);
+      setSummary(summaryData);
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+      toast.error("Failed to fetch applications.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [appsData, summaryData] = await Promise.all([
-          getApplications(),
-          getStatusSummary()
-        ]);
-        setApplications(appsData);
-        setSummary(summaryData);
-      } catch (error) {
-        console.error("Failed to fetch data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this application? This cannot be undone.")) return;
+    
+    try {
+      await deleteApplication(id.toString());
+      toast.success("Application deleted successfully.");
+      fetchData(); // Refresh the list
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete application.");
+    }
+  };
+
+  const handleStatusChange = async (id: number, newStatus: string) => {
+    try {
+      await updateApplicationStatus(id.toString(), newStatus);
+      toast.success("Status updated successfully.");
+      fetchData(); // Refresh the list and summary
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update status.");
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "Accepted": return "default"; // green-ish normally or default
+      case "Accepted": return "default";
       case "Rejected": return "destructive";
       default: return "secondary"; // Processing
     }
   };
 
   if (loading) {
-    return <div className="p-10 text-center">Loading applications...</div>;
+    return <div className="p-10 text-center text-slate-500">Loading applications dashboard...</div>;
   }
 
   return (
@@ -102,14 +130,14 @@ export default function AdminApplicationsPage() {
                 <TableHead>Date</TableHead>
                 <TableHead>Files</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {applications.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6 text-slate-500">
-                    No applications found.
+                  <TableCell colSpan={6} className="text-center py-10 text-slate-500">
+                    No applications found. 
                   </TableCell>
                 </TableRow>
               ) : (
@@ -136,17 +164,41 @@ export default function AdminApplicationsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusBadgeVariant(app.status)}>
-                        {app.status}
-                      </Badge>
+                      <div className="flex flex-col gap-2 items-start">
+                        <Badge variant={getStatusBadgeVariant(app.status)} className="mb-1">
+                          {app.status}
+                        </Badge>
+                        <Select 
+                          defaultValue={app.status} 
+                          onValueChange={(val) => handleStatusChange(app.id, val)}
+                        >
+                          <SelectTrigger className="h-8 text-xs w-[130px]">
+                            <SelectValue placeholder="Change status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Processing">Processing</SelectItem>
+                            <SelectItem value="Accepted">Accepted</SelectItem>
+                            <SelectItem value="Rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/admin/applications/${app.id}/edit`}>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Review
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/admin/applications/${app.id}/edit`}>
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </Link>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => handleDelete(app.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
