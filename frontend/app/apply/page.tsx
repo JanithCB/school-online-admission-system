@@ -149,6 +149,16 @@ export default function ApplyPage() {
       await submitApplication(fd);
       setSuccess(true);
     } catch (err: any) {
+      console.error(err);
+      if (err.response?.data) {
+        // If it's a Django validation error object
+        if (typeof err.response.data === 'object' && !err.response.data.detail) {
+          const firstErrorKey = Object.keys(err.response.data)[0];
+          const firstErrorMessage = err.response.data[firstErrorKey];
+          toast.error(`${firstErrorKey}: ${firstErrorMessage}`);
+          return;
+        }
+      }
       toast.error(
         err.response?.data?.detail || "Submission failed. Please try again."
       );
