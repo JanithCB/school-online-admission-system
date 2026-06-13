@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import Count
 from .models import Application
 from .serializers import ApplicationSerializer
@@ -17,8 +17,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     queryset = Application.objects.all().order_by('-created_at')
     serializer_class = ApplicationSerializer
     
-    # Best practice: Explicitly enable form-data parsing for file uploads
-    parser_classes = (MultiPartParser, FormParser)
+    # Best practice: Explicitly enable form-data parsing for file uploads, and JSONParser for normal updates
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     @action(detail=False, methods=['get'])
     def status_summary(self, request):
