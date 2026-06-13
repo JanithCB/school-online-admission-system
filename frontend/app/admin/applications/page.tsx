@@ -2,16 +2,73 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getApplications, getStatusSummary, deleteApplication, updateApplicationStatus } from "@/lib/api";
+import {
+  getApplications,
+  getStatusSummary,
+  deleteApplication,
+  updateApplicationStatus,
+} from "@/lib/api";
 import { Application, StatusSummary } from "@/types";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit, FileText, Image as ImageIcon, Trash2 } from "lucide-react";
+import { FileText, Image as ImageIcon, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+// ── Stat card ─────────────────────────────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: string;
+}) {
+  return (
+    <div className="bg-white border border-[#e5e5e0] rounded-md p-5">
+      <p className="text-xs font-semibold tracking-widest uppercase text-[#888882] mb-2">
+        {label}
+      </p>
+      <p className={`text-3xl font-bold ${accent ?? "text-[#1a1a1a]"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// ── Status pill ───────────────────────────────────────────────────────────────
+function StatusPill({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    Processing: "bg-[#fef3c7] text-[#92400e]",
+    Accepted: "bg-[#dcfce7] text-[#166534]",
+    Rejected: "bg-[#fee2e2] text-[#991b1b]",
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+        styles[status] ?? "bg-[#f0efea] text-[#555550]"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function AdminApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [summary, setSummary] = useState<StatusSummary | null>(null);
@@ -21,12 +78,11 @@ export default function AdminApplicationsPage() {
     try {
       const [appsData, summaryData] = await Promise.all([
         getApplications(),
-        getStatusSummary()
+        getStatusSummary(),
       ]);
       setApplications(appsData);
       setSummary(summaryData);
-    } catch (error) {
-      console.error("Failed to fetch data", error);
+    } catch {
       toast.error("Failed to fetch applications.");
     } finally {
       setLoading(false);
@@ -38,14 +94,17 @@ export default function AdminApplicationsPage() {
   }, []);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this application? This cannot be undone.")) return;
-    
+    if (
+      !window.confirm(
+        "Delete this application? This action cannot be undone."
+      )
+    )
+      return;
     try {
       await deleteApplication(id.toString());
-      toast.success("Application deleted successfully.");
-      fetchData(); // Refresh the list
-    } catch (error) {
-      console.error(error);
+      toast.success("Application deleted.");
+      fetchData();
+    } catch {
       toast.error("Failed to delete application.");
     }
   };
@@ -53,160 +112,215 @@ export default function AdminApplicationsPage() {
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
       await updateApplicationStatus(id.toString(), newStatus);
-      toast.success("Status updated successfully.");
-      fetchData(); // Refresh the list and summary
-    } catch (error) {
-      console.error(error);
+      toast.success("Status updated.");
+      fetchData();
+    } catch {
       toast.error("Failed to update status.");
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "Accepted": return "default";
-      case "Rejected": return "destructive";
-      default: return "secondary"; // Processing
-    }
-  };
-
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
-    return <div className="p-10 text-center text-slate-500">Loading applications dashboard...</div>;
+    return (
+      <div className="max-w-7xl mx-auto px-6 py-24 text-center">
+        <p className="text-sm text-[#888882]">Loading dashboard…</p>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Applications Dashboard</h1>
-        <p className="text-slate-500 mt-2">Manage and review student admissions.</p>
+    <div className="max-w-7xl mx-auto px-6 py-12 space-y-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold tracking-widest uppercase text-[#888882] mb-2">
+            Admin
+          </p>
+          <h1 className="text-3xl font-bold text-[#1a1a1a]">
+            Applications Dashboard
+          </h1>
+          <p className="text-sm text-[#555550] mt-1">
+            Review, update, and manage all submitted applications.
+          </p>
+        </div>
+        <Link href="/apply">
+          <Button className="bg-[#1a1a1a] text-white hover:bg-[#333] text-sm h-10 px-5 rounded-md">
+            + New Application
+          </Button>
+        </Link>
       </div>
 
+      {/* Summary cards */}
       {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.Total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-amber-600">Processing</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.Processing}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-emerald-600">Accepted</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.Accepted}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-red-600">Rejected</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.Rejected}</div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Total" value={summary.Total} />
+          <StatCard label="Processing" value={summary.Processing} accent="text-[#92400e]" />
+          <StatCard label="Accepted"   value={summary.Accepted}   accent="text-[#166534]" />
+          <StatCard label="Rejected"   value={summary.Rejected}   accent="text-[#991b1b]" />
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Submissions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
+      {/* Divider */}
+      <div className="h-px bg-[#e5e5e0]" />
+
+      {/* Table */}
+      <div className="bg-white border border-[#e5e5e0] rounded-md overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#e5e5e0]">
+          <h2 className="text-sm font-semibold text-[#1a1a1a]">
+            All Submissions
+            <span className="ml-2 text-[#888882] font-normal">
+              ({applications.length})
+            </span>
+          </h2>
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-[#e5e5e0] bg-[#fafaf8]">
+              <TableHead className="text-xs font-semibold tracking-wide uppercase text-[#888882] py-3">
+                Applicant
+              </TableHead>
+              <TableHead className="text-xs font-semibold tracking-wide uppercase text-[#888882]">
+                Grade
+              </TableHead>
+              <TableHead className="text-xs font-semibold tracking-wide uppercase text-[#888882]">
+                Submitted
+              </TableHead>
+              <TableHead className="text-xs font-semibold tracking-wide uppercase text-[#888882]">
+                Files
+              </TableHead>
+              <TableHead className="text-xs font-semibold tracking-wide uppercase text-[#888882]">
+                Status
+              </TableHead>
+              <TableHead className="text-xs font-semibold tracking-wide uppercase text-[#888882] text-right">
+                Actions
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {applications.length === 0 ? (
               <TableRow>
-                <TableHead>Applicant</TableHead>
-                <TableHead>Grade</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Files</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableCell
+                  colSpan={6}
+                  className="py-20 text-center text-sm text-[#888882]"
+                >
+                  No applications yet.{" "}
+                  <Link
+                    href="/apply"
+                    className="underline underline-offset-2 text-[#1a1a1a]"
+                  >
+                    Submit the first one.
+                  </Link>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {applications.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-slate-500">
-                    No applications found. 
+            ) : (
+              applications.map((app) => (
+                <TableRow
+                  key={app.id}
+                  className="border-b border-[#f0efea] hover:bg-[#fafaf8] transition-colors"
+                >
+                  {/* Name + gender */}
+                  <TableCell className="py-4">
+                    <p className="text-sm font-medium text-[#1a1a1a]">
+                      {app.full_name}
+                    </p>
+                    <p className="text-xs text-[#888882] mt-0.5">{app.gender}</p>
+                  </TableCell>
+
+                  {/* Grade */}
+                  <TableCell className="text-sm text-[#333330]">
+                    {app.grade_level}
+                  </TableCell>
+
+                  {/* Date */}
+                  <TableCell className="text-sm text-[#555550]">
+                    {new Date(app.created_at).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </TableCell>
+
+                  {/* File links */}
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      {app.photo && (
+                        <a
+                          href={app.photo}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="View photo"
+                          className="text-[#aaa] hover:text-[#1a1a1a] transition-colors"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </a>
+                      )}
+                      {app.document && (
+                        <a
+                          href={app.document}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="View document"
+                          className="text-[#aaa] hover:text-[#1a1a1a] transition-colors"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  {/* Status */}
+                  <TableCell>
+                    <div className="flex flex-col gap-2">
+                      <StatusPill status={app.status} />
+                      <Select
+                        defaultValue={app.status}
+                        onValueChange={(val) =>
+                          handleStatusChange(app.id, val)
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-xs w-[120px] border-[#d0d0ca] bg-[#fafaf8]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Processing">Processing</SelectItem>
+                          <SelectItem value="Accepted">Accepted</SelectItem>
+                          <SelectItem value="Rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TableCell>
+
+                  {/* Actions */}
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link href={`/admin/applications/${app.id}/edit`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 border-[#d0d0ca] text-[#1a1a1a] hover:bg-[#f5f5f2] text-xs"
+                        >
+                          <Pencil className="h-3 w-3 mr-1.5" />
+                          Edit
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-[#991b1b] hover:bg-[#fee2e2] hover:text-[#991b1b] text-xs"
+                        onClick={() => handleDelete(app.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ) : (
-                applications.map((app) => (
-                  <TableRow key={app.id}>
-                    <TableCell className="font-medium">
-                      <div>{app.full_name}</div>
-                      <div className="text-xs text-slate-500">{app.gender}</div>
-                    </TableCell>
-                    <TableCell>{app.grade_level}</TableCell>
-                    <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {app.photo && (
-                          <a href={app.photo} target="_blank" rel="noreferrer" title="View Photo" className="text-slate-400 hover:text-indigo-600">
-                            <ImageIcon className="h-5 w-5" />
-                          </a>
-                        )}
-                        {app.document && (
-                          <a href={app.document} target="_blank" rel="noreferrer" title="View Document" className="text-slate-400 hover:text-indigo-600">
-                            <FileText className="h-5 w-5" />
-                          </a>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-2 items-start">
-                        <Badge variant={getStatusBadgeVariant(app.status)} className="mb-1">
-                          {app.status}
-                        </Badge>
-                        <Select 
-                          defaultValue={app.status} 
-                          onValueChange={(val) => handleStatusChange(app.id, val)}
-                        >
-                          <SelectTrigger className="h-8 text-xs w-[130px]">
-                            <SelectValue placeholder="Change status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Processing">Processing</SelectItem>
-                            <SelectItem value="Accepted">Accepted</SelectItem>
-                            <SelectItem value="Rejected">Rejected</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/admin/applications/${app.id}/edit`}>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                        </Link>
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          onClick={() => handleDelete(app.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
