@@ -7,4 +7,13 @@ const api = axios.create({
   },
 });
 
+export const submitApplication = async (formData: FormData) => {
+  const response = await api.post('/applications/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 export default api;

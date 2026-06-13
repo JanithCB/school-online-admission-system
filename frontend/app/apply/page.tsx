@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { submitApplication } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UploadCloud, CheckCircle2, AlertCircle } from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { UploadCloud, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 
 const extracurricularOptions = [
   "Sports",
@@ -21,82 +26,77 @@ const extracurricularOptions = [
   "Volunteering"
 ];
 
+// Custom file validators
+const MAX_FILE_SIZE = 5000000;
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPTED_DOC_TYPES = [
+  "application/pdf", 
+  "application/msword", 
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+];
+
+const formSchema = z.object({
+  full_name: z.string().min(2, "Name must be at least 2 characters."),
+  grade_level: z.string().min(1, "Please select a grade."),
+  gender: z.string().min(1, "Please select a gender."),
+  activities: z.array(z.string()).default([]),
+  photo: z.any()
+    .refine((files) => files?.length == 1, "Image is required.")
+    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(
+      (files) => ACCEPTED_IMAGE_TYPES.includes(files?.[0]?.type),
+      "Only .jpg, .jpeg, .png and .webp formats are supported."
+    ),
+  document: z.any()
+    .refine((files) => files?.length == 1, "Document is required.")
+    .refine((files) => files?.[0]?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(
+      (files) => ACCEPTED_DOC_TYPES.includes(files?.[0]?.type),
+      "Only .pdf, .doc, and .docx formats are supported."
+    ),
+});
+
 export default function ApplyPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  // Form State
-  const [name, setName] = useState("");
-  const [grade, setGrade] = useState("");
-  const [gender, setGender] = useState("");
-  const [activities, setActivities] = useState<string[]>([]);
-  
-  // File State
-  const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [document, setDocument] = useState<File | null>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      full_name: "",
+      grade_level: "",
+      gender: "",
+      activities: [],
+    },
+  });
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const formData = new FormData();
+      formData.append("full_name", values.full_name);
+      formData.append("grade_level", values.grade_level);
+      formData.append("gender", values.gender);
+      formData.append("activities", JSON.stringify(values.activities));
+      formData.append("photo", values.photo[0]);
+      formData.append("document", values.document[0]);
+
+      await submitApplication(formData);
+      setSuccess(true);
+      toast.success("Application submitted successfully!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || "Failed to submit. Please try again.");
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (value: any) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImage(file);
+      onChange(e.target.files);
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
-    }
-  };
-
-  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const validExtensions = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-      if (validExtensions.includes(file.type)) {
-        setDocument(file);
-        setError(null);
-      } else {
-        setDocument(null);
-        setError("Invalid document type. Only PDF, DOC, and DOCX are allowed.");
-      }
-    }
-  };
-
-  const handleActivityToggle = (activity: string) => {
-    setActivities((prev) =>
-      prev.includes(activity) ? prev.filter((a) => a !== activity) : [...prev, activity]
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !grade || !gender || !image || !document) {
-      setError("Please fill in all required fields and upload both files.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append("applicant_name", name);
-    formData.append("grade_level", grade);
-    formData.append("gender", gender);
-    // Send as JSON string to the backend
-    formData.append("extracurricular_activities", JSON.stringify(activities));
-    formData.append("applicant_image", image);
-    formData.append("applicant_document", document);
-
-    try {
-      await submitApplication(formData);
-      setSuccess(true);
-      // Optional: Redirect to dashboard after a delay
-      // setTimeout(() => router.push('/'), 3000);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.detail || "Failed to submit the application. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -129,143 +129,199 @@ export default function ApplyPage() {
 
         <Card className="shadow-2xl border-0 ring-1 ring-slate-200">
           <CardContent className="p-6 sm:p-10">
-            <form onSubmit={handleSubmit} className="space-y-8">
-              
-              {/* Applicant Name */}
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-base font-semibold">Applicant Full Name *</Label>
-                <Input 
-                  id="name" 
-                  placeholder="e.g. Jane Doe" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  className="h-12 text-lg transition-shadow focus-visible:ring-indigo-500"
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                
+                <FormField
+                  control={form.control}
+                  name="full_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold">Applicant Full Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Jane Doe" className="h-12 text-lg" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
 
-              {/* Grade Level */}
-              <div className="space-y-2">
-                <Label className="text-base font-semibold">Applying for Grade *</Label>
-                <Select value={grade} onValueChange={setGrade}>
-                  <SelectTrigger className="h-12 text-lg">
-                    <SelectValue placeholder="Select a grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <SelectItem key={i + 1} value={`Grade ${i + 1}`}>Grade {i + 1}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                <FormField
+                  control={form.control}
+                  name="grade_level"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold">Applying for Grade *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-12 text-lg">
+                            <SelectValue placeholder="Select a grade" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <SelectItem key={i + 1} value={`Grade ${i + 1}`}>Grade {i + 1}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {/* Gender */}
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Gender *</Label>
-                <RadioGroup value={gender} onValueChange={setGender} className="flex gap-6">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Male" id="male" />
-                    <Label htmlFor="male" className="font-normal text-md cursor-pointer">Male</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Female" id="female" />
-                    <Label htmlFor="female" className="font-normal text-md cursor-pointer">Female</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Other" id="other" />
-                    <Label htmlFor="other" className="font-normal text-md cursor-pointer">Other</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-base font-semibold">Gender *</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex gap-6"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="Male" /></FormControl>
+                            <FormLabel className="font-normal text-md">Male</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="Female" /></FormControl>
+                            <FormLabel className="font-normal text-md">Female</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl><RadioGroupItem value="Other" /></FormControl>
+                            <FormLabel className="font-normal text-md">Other</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {/* Extracurriculars */}
-              <div className="space-y-3">
-                <Label className="text-base font-semibold">Extracurricular Interests</Label>
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                  {extracurricularOptions.map((activity) => (
-                    <div key={activity} className="flex items-center space-x-3">
-                      <Checkbox 
-                        id={activity} 
-                        checked={activities.includes(activity)}
-                        onCheckedChange={() => handleActivityToggle(activity)}
-                      />
-                      <Label htmlFor={activity} className="font-normal text-md cursor-pointer">
-                        {activity}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-6">
-                {/* Image Upload */}
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">Recent Photo *</Label>
-                  <div className="mt-2 flex justify-center rounded-xl border border-dashed border-slate-300 px-6 py-8 hover:bg-slate-50 transition-colors relative group overflow-hidden">
-                    {imagePreview ? (
-                      <div className="text-center w-full">
-                        <img src={imagePreview} alt="Preview" className="mx-auto h-32 w-32 object-cover rounded-full shadow-md" />
-                        <p className="mt-3 text-sm text-slate-500">{image?.name}</p>
+                <FormField
+                  control={form.control}
+                  name="activities"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold">Extracurricular Interests</FormLabel>
+                      <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        {extracurricularOptions.map((activity) => (
+                          <FormField
+                            key={activity}
+                            control={form.control}
+                            name="activities"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={activity}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(activity)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...field.value, activity])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== activity
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal text-md cursor-pointer">
+                                    {activity}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
                       </div>
-                    ) : (
-                      <div className="text-center">
-                        <UploadCloud className="mx-auto h-12 w-12 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                        <div className="mt-4 flex text-sm leading-6 text-slate-600 justify-center">
-                          <label htmlFor="file-upload" className="relative cursor-pointer rounded-md bg-white font-semibold text-indigo-600 hover:text-indigo-500">
-                            <span>Upload a file</span>
-                            <input id="file-upload" name="file-upload" type="file" accept="image/*" className="sr-only" onChange={handleImageChange} />
-                          </label>
-                        </div>
-                        <p className="text-xs leading-5 text-slate-500">PNG, JPG up to 5MB</p>
-                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="photo"
+                    render={({ field: { onChange, value, ...rest } }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-semibold">Recent Photo *</FormLabel>
+                        <FormControl>
+                          <div className="mt-2 flex justify-center rounded-xl border border-dashed border-slate-300 px-6 py-8 hover:bg-slate-50 transition-colors relative group overflow-hidden">
+                            {imagePreview ? (
+                              <div className="text-center w-full">
+                                <img src={imagePreview} alt="Preview" className="mx-auto h-32 w-32 object-cover rounded-full shadow-md" />
+                                <p className="mt-3 text-sm text-slate-500 truncate">{value?.[0]?.name}</p>
+                              </div>
+                            ) : (
+                              <div className="text-center">
+                                <UploadCloud className="mx-auto h-12 w-12 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                                <div className="mt-4 flex text-sm leading-6 text-slate-600 justify-center">
+                                  <span className="font-semibold text-indigo-600">Upload a file</span>
+                                </div>
+                                <p className="text-xs leading-5 text-slate-500">PNG, JPG up to 5MB</p>
+                              </div>
+                            )}
+                            <input
+                              type="file"
+                              accept="image/jpeg, image/jpg, image/png, image/webp"
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                              onChange={(e) => handleImageChange(e, onChange)}
+                              {...rest}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                    {imagePreview && (
-                      <input id="file-upload-change" type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onChange={handleImageChange} />
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="document"
+                    render={({ field: { onChange, value, ...rest } }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-semibold">Supporting Document *</FormLabel>
+                        <FormControl>
+                          <div className="mt-2 flex justify-center rounded-xl border border-dashed border-slate-300 px-6 py-8 hover:bg-slate-50 transition-colors relative">
+                            <div className="text-center">
+                              <div className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center ${value?.[0] ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                                {value?.[0] ? <CheckCircle2 className="h-6 w-6 text-emerald-600" /> : <UploadCloud className="h-6 w-6 text-slate-400" />}
+                              </div>
+                              <div className="mt-4 flex text-sm leading-6 text-slate-600 justify-center">
+                                <span className="font-semibold text-indigo-600">{value?.[0] ? "Change File" : "Upload Document"}</span>
+                              </div>
+                              <p className="text-xs leading-5 text-slate-500 mt-1 truncate max-w-[150px]">
+                                {value?.[0] ? value[0].name : "PDF, DOC, DOCX"}
+                              </p>
+                            </div>
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                              onChange={(e) => onChange(e.target.files)}
+                              {...rest}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </div>
+                  />
                 </div>
 
-                {/* Document Upload */}
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">Supporting Document *</Label>
-                  <div className="mt-2 flex justify-center rounded-xl border border-dashed border-slate-300 px-6 py-8 hover:bg-slate-50 transition-colors relative">
-                    <div className="text-center">
-                      <div className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center ${document ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                        {document ? <CheckCircle2 className="h-6 w-6 text-emerald-600" /> : <UploadCloud className="h-6 w-6 text-slate-400" />}
-                      </div>
-                      <div className="mt-4 flex text-sm leading-6 text-slate-600 justify-center">
-                        <label htmlFor="doc-upload" className="relative cursor-pointer rounded-md bg-transparent font-semibold text-indigo-600 hover:text-indigo-500">
-                          <span>{document ? "Change File" : "Upload Document"}</span>
-                          <input id="doc-upload" name="doc-upload" type="file" accept=".pdf,.doc,.docx" className="sr-only" onChange={handleDocumentChange} />
-                        </label>
-                      </div>
-                      <p className="text-xs leading-5 text-slate-500 mt-1">
-                        {document ? document.name : "PDF, DOC, DOCX"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="rounded-md bg-red-50 p-4 border border-red-200">
-                  <div className="flex">
-                    <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <div className="pt-4">
-                <Button type="submit" className="w-full h-14 text-lg font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all" disabled={loading}>
-                  {loading ? "Submitting Application..." : "Submit Application"}
+                <Button type="submit" className="w-full h-14 text-lg font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "Submitting Application..." : "Submit Application"}
                 </Button>
-              </div>
-
-            </form>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>
