@@ -8,8 +8,11 @@ from .serializers import ApplicationSerializer
 
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
-    A viewset that provides the standard actions for Application model.
-    Also handles file uploads properly via MultiPartParser.
+    ViewSet for handling CRUD operations on Applications.
+    
+    This viewset provides standard REST API endpoints (GET, POST, PUT, PATCH, DELETE) 
+    for the Application model. It uses MultiPartParser and FormParser to correctly 
+    handle requests that include file uploads (photo and document fields).
     """
     queryset = Application.objects.all().order_by('-created_at')
     serializer_class = ApplicationSerializer

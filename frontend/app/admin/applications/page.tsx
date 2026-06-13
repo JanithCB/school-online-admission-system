@@ -1,4 +1,12 @@
 // @ts-nocheck
+/**
+ * Admin Dashboard Page
+ * 
+ * This page acts as the main dashboard for administrators. It displays summary cards 
+ * for application statuses (Processing, Accepted, Rejected) and a tabular list of all 
+ * submitted applications. Admins can view documents/photos, change statuses directly 
+ * from the table, edit applications, or delete them.
+ */
 "use client";
 
 import { useEffect, useState } from "react";

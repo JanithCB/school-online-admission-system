@@ -1,4 +1,12 @@
 // @ts-nocheck
+/**
+ * Application Form Page
+ * 
+ * This page contains the main application form for students to apply for admission.
+ * It uses react-hook-form for state management, Zod for schema validation, and 
+ * shadcn/ui components for styling. It handles text inputs, radio buttons, 
+ * checkboxes, and file uploads (photo and document) with client-side preview and validation.
+ */
 "use client";
 
 import { useState } from "react";
