@@ -281,7 +281,7 @@ export default function ApplyPage() {
                         <FormLabel className="text-sm font-medium text-[#1a1a1a]">
                           Grade Applying For *
                         </FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="h-11 border-[#d0d0ca] bg-[#fafaf8]">
                               <SelectValue placeholder="Select grade" />
@@ -311,7 +311,7 @@ export default function ApplyPage() {
                         <FormControl>
                           <RadioGroup
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                             className="flex flex-col gap-2 pt-1"
                           >
                             {["Male", "Female", "Other"].map((g) => (
