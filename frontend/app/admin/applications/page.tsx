@@ -284,7 +284,7 @@ export default function AdminApplicationsPage() {
                     <div className="flex flex-col gap-2">
                       <StatusPill status={app.status} />
                       <Select
-                        defaultValue={app.status}
+                        value={app.status}
                         onValueChange={(val) =>
                           handleStatusChange(app.id, val as string)
                         }
