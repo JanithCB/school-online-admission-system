@@ -28,9 +28,21 @@ export const getApplication = async (id: string): Promise<Application> => {
 };
 
 export const updateApplicationStatus = async (id: string, status: string): Promise<Application> => {
-  // We use PATCH to only update the status
   const response = await api.patch(`/applications/${id}/`, { status });
   return response.data;
+};
+
+export const updateApplication = async (id: string, formData: FormData): Promise<Application> => {
+  const response = await api.patch(`/applications/${id}/`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const deleteApplication = async (id: string): Promise<void> => {
+  await api.delete(`/applications/${id}/`);
 };
 
 export const getStatusSummary = async (): Promise<StatusSummary> => {
