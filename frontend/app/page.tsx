@@ -1,289 +1,110 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { getApplications, getSummary, updateApplicationStatus, deleteApplication } from "@/lib/api";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Eye, Edit, Trash2, FileText, CheckCircle, Clock, XCircle, Download } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowRight, CheckCircle } from "lucide-react";
 
-type Application = {
-  id: number;
-  applicant_name: string;
-  grade_level: string;
-  gender: string;
-  extracurricular_activities: string;
-  status: string;
-  applicant_image: string;
-  applicant_document: string;
-  created_at: string;
-};
+const highlights = [
+  "Paperless application process",
+  "Instant status tracking",
+  "Secure document submission",
+  "Responses within 5 business days",
+];
 
-type Summary = {
-  Processing: number;
-  Accepted: number;
-  Rejected: number;
-};
-
-export default function Dashboard() {
-  const router = useRouter();
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [summary, setSummary] = useState<Summary>({ Processing: 0, Accepted: 0, Rejected: 0 });
-  const [loading, setLoading] = useState(true);
-
-  // Modals state
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<string>("");
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [appsData, summaryData] = await Promise.all([getApplications(), getSummary()]);
-      setApplications(appsData);
-      setSummary(summaryData);
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleStatusUpdate = async () => {
-    if (!selectedApp || !newStatus) return;
-    try {
-      await updateApplicationStatus(selectedApp.id, newStatus);
-      setIsEditModalOpen(false);
-      fetchData();
-    } catch (error) {
-      console.error("Failed to update status", error);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedApp) return;
-    try {
-      await deleteApplication(selectedApp.id);
-      setIsDeleteModalOpen(false);
-      fetchData();
-    } catch (error) {
-      console.error("Failed to delete application", error);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Accepted":
-        return <Badge className="bg-emerald-500 hover:bg-emerald-600">Accepted</Badge>;
-      case "Rejected":
-        return <Badge variant="destructive">Rejected</Badge>;
-      default:
-        return <Badge className="bg-amber-500 hover:bg-amber-600">Processing</Badge>;
-    }
-  };
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 sm:p-10">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Admin Dashboard</h1>
-            <p className="text-slate-500 mt-1">Manage school admission applications.</p>
+    <div className="flex flex-col">
+      {/* Hero Section */}
+      <section className="max-w-7xl mx-auto px-6 pt-24 pb-20">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold tracking-widest uppercase text-[#888882] mb-6">
+            Academic Year 2025–2026
+          </p>
+          <h1 className="text-5xl md:text-6xl font-bold text-[#1a1a1a] leading-tight mb-6">
+            Admissions are <br />
+            <span className="border-b-4 border-[#1a1a1a]">now open.</span>
+          </h1>
+          <p className="text-lg text-[#555550] leading-relaxed mb-10 max-w-xl">
+            Apply online for grades 1 through 12. Our application process is
+            straightforward — fill in your details, upload the required documents,
+            and submit. No appointments needed.
+          </p>
+
+          <div className="flex flex-wrap gap-4">
+            <Link href="/apply">
+              <Button className="bg-[#1a1a1a] text-white hover:bg-[#333] h-12 px-8 text-sm font-semibold rounded-md gap-2">
+                Start Application <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/admin/applications">
+              <Button variant="outline" className="h-12 px-8 text-sm font-semibold rounded-md border-[#d0d0ca] text-[#1a1a1a] hover:bg-[#f5f5f2]">
+                View All Submissions
+              </Button>
+            </Link>
           </div>
-          <Button onClick={() => router.push("/apply")} className="bg-indigo-600 hover:bg-indigo-700">
-            Submit New Application
-          </Button>
         </div>
+      </section>
 
-        {/* Summary Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="border-l-4 border-l-amber-500 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Processing</CardTitle>
-              <Clock className="h-4 w-4 text-amber-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{summary.Processing}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-emerald-500 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Accepted</CardTitle>
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{summary.Accepted}</div>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-red-500 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">Rejected</CardTitle>
-              <XCircle className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{summary.Rejected}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Applications Table */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader>
-            <CardTitle>Recent Applications</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="h-40 flex items-center justify-center text-slate-500">Loading applications...</div>
-            ) : applications.length === 0 ? (
-              <div className="h-40 flex flex-col items-center justify-center text-slate-500 text-center">
-                <FileText className="h-10 w-10 text-slate-300 mb-2" />
-                <p>No applications found.</p>
-              </div>
-            ) : (
-              <div className="rounded-md border border-slate-200 overflow-hidden">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead>Applicant</TableHead>
-                      <TableHead>Grade</TableHead>
-                      <TableHead>Gender</TableHead>
-                      <TableHead>Date Applied</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {applications.map((app) => (
-                      <TableRow key={app.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            <img src={app.applicant_image} alt={app.applicant_name} className="h-10 w-10 rounded-full object-cover border border-slate-200" />
-                            {app.applicant_name}
-                          </div>
-                        </TableCell>
-                        <TableCell>{app.grade_level}</TableCell>
-                        <TableCell>{app.gender}</TableCell>
-                        <TableCell>{new Date(app.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>{getStatusBadge(app.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                              onClick={() => window.open(app.applicant_document, '_blank')}
-                            >
-                              <Download className="h-4 w-4 mr-1" /> Doc
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8"
-                              onClick={() => {
-                                setSelectedApp(app);
-                                setNewStatus(app.status);
-                                setIsEditModalOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-1" /> Status
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-8 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                              onClick={() => {
-                                setSelectedApp(app);
-                                setIsDeleteModalOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Divider */}
+      <div className="max-w-7xl mx-auto px-6 w-full">
+        <div className="h-px bg-[#e5e5e0]" />
       </div>
 
-      {/* Edit Status Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Application Status</DialogTitle>
-            <DialogDescription>
-              Change the admission status for <strong>{selectedApp?.applicant_name}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label className="mb-2 block text-sm font-medium">Status</Label>
-            <Select value={newStatus} onValueChange={setNewStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select new status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Processing">Processing</SelectItem>
-                <SelectItem value="Accepted">Accepted</SelectItem>
-                <SelectItem value="Rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* Features Section */}
+      <section className="max-w-7xl mx-auto px-6 py-20">
+        <div className="grid md:grid-cols-2 gap-16 items-start">
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-[#888882] mb-4">
+              What we offer
+            </p>
+            <h2 className="text-3xl font-bold text-[#1a1a1a] mb-6 leading-tight">
+              A simple process for a <br /> important decision.
+            </h2>
+            <p className="text-[#555550] leading-relaxed">
+              Our online admission portal is designed for clarity. You fill a form,
+              upload your documents, and our team reviews each application carefully.
+              Admissions are free of bias and based purely on available seats and
+              grade eligibility.
+            </p>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleStatusUpdate}>Save Changes</Button>
+
+          <div className="space-y-4 pt-2">
+            {highlights.map((item) => (
+              <div key={item} className="flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-[#1a1a1a] mt-0.5 flex-shrink-0" />
+                <span className="text-[#333330] text-sm leading-relaxed">{item}</span>
+              </div>
+            ))}
+
+            <div className="pt-4 grid grid-cols-2 gap-4">
+              {[
+                { label: "Grades", value: "1 – 12" },
+                { label: "Applications", value: "Online Only" },
+                { label: "Decision Time", value: "≤ 5 Days" },
+                { label: "Cost", value: "Free" },
+              ].map((stat) => (
+                <div key={stat.label} className="p-4 border border-[#e5e5e0] rounded-md bg-white">
+                  <div className="text-xl font-bold text-[#1a1a1a]">{stat.value}</div>
+                  <div className="text-xs text-[#888882] mt-1 uppercase tracking-wide">{stat.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </section>
 
-      {/* Delete Confirmation Modal */}
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the application for <strong>{selectedApp?.applicant_name}</strong> and remove their data from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleDelete}>
-              Yes, delete application
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
+      {/* CTA Band */}
+      <div className="bg-[#1a1a1a] text-white">
+        <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div>
+            <p className="text-lg font-semibold mb-1">Ready to apply?</p>
+            <p className="text-[#aaa] text-sm">Applications take less than 5 minutes to complete.</p>
+          </div>
+          <Link href="/apply">
+            <Button className="bg-white text-[#1a1a1a] hover:bg-[#f0efea] h-11 px-8 text-sm font-semibold rounded-md gap-2">
+              Apply Now <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
