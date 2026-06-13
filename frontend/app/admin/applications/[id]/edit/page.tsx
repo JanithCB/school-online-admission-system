@@ -34,7 +34,7 @@ function DetailRow({
       </div>
       <div>
         <p className="text-xs text-[#888882] mb-0.5">{label}</p>
-        <p className="text-sm font-medium text-[#1a1a1a]">{value}</p>
+        <div className="text-sm font-medium text-[#1a1a1a]">{value}</div>
       </div>
     </div>
   );
