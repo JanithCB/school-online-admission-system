@@ -169,12 +169,31 @@ export default function ApplyPage() {
     files: FileList | null,
     onChange: (v: FileList | null) => void
   ) => {
-    onChange(files);
     if (files?.[0]) {
+      if (files[0].size > MAX_SIZE) {
+        toast.error("Photo exceeds the 5MB maximum file size limit.");
+        return;
+      }
+      onChange(files);
       const reader = new FileReader();
       reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(files[0]);
+    } else {
+      onChange(files);
     }
+  };
+
+  const handleDocumentChange = (
+    files: FileList | null,
+    onChange: (v: FileList | null) => void
+  ) => {
+    if (files?.[0]) {
+      if (files[0].size > MAX_SIZE) {
+        toast.error("Document exceeds the 5MB maximum file size limit.");
+        return;
+      }
+    }
+    onChange(files);
   };
 
   // ── Success state ─────────────────────────────────────────────────────────
@@ -442,7 +461,7 @@ export default function ApplyPage() {
                             accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             fileName={value?.[0]?.name}
                             hasFile={!!value?.[0]}
-                            onChange={(files) => onChange(files)}
+                            onChange={(files) => handleDocumentChange(files, onChange)}
                           />
                         </FormControl>
                         <FormMessage className="text-xs" />
