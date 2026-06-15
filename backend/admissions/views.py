@@ -27,7 +27,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         URL: GET /api/admissions/applications/status_summary/
         """
         # Query the database to group by status and count
-        summary = self.queryset.values('status').annotate(count=Count('status'))
+        # .order_by() clears the default ordering to prevent grouping by created_at
+        summary = self.get_queryset().order_by().values('status').annotate(count=Count('status'))
         
         # Transform queryset result into a simple dictionary
         data = {item['status']: item['count'] for item in summary}
